@@ -17,7 +17,7 @@ tags:
     slug: "best-practices"
 author: "Cooper"
 featured: false
-coverImage: "/images/posts/nextjs-best-practices.jpg"
+coverImage: "/images/posts/nextjs-best-practices.svg"
 wordCount: 1200
 readingTime: 6
 ---

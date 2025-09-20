@@ -168,7 +168,9 @@ export function generateExcerpt(content: string, length: number = 200): string {
     .replace(/^\s*[-*+]\s+/gm, '') // 移除列表标记
     .replace(/^\s*\d+\.\s+/gm, '') // 移除有序列表标记
     .replace(/^\s*>\s+/gm, '') // 移除引用标记
-    .replace(/\n+/g, ' ') // 将换行符替换为空格
+    .replace(/\n\s*\n/g, '\n') // 合并多个空行为单个换行
+    .replace(/\n/g, ' ') // 将单个换行符替换为空格
+    .replace(/\s+/g, ' ') // 合并多个空格为单个空格
     .trim()
 
   // 截取指定长度

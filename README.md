@@ -1,6 +1,6 @@
 # Cooper's Blog
 
-基于 Next.js 15 + React 19 + Ant Design 5.x 技术栈的个人博客网站，采用 JAMstack 架构模式，支持 Markdown 文章渲染、工具集成和全球化访问。
+基于 Next.js 15 + React 19 技术栈的个人博客网站，采用 JAMstack 架构模式，支持 Markdown 文章渲染、智能缓存和工具集成。
 
 ## ✨ 特性
 
@@ -271,20 +271,154 @@ const slugMap: Record<string, string> = {
 - 完全静态化，CDN 友好
 - 支持现代浏览器（Chrome 80+, Safari 14+）
 
-## 🚀 部署
+## 🚀 部署指南
 
-### Vercel 部署（推荐）
+### 部署方式说明
+
+本项目采用 **静态站点生成 (SSG)** 模式，文章内容在构建时生成，因此添加新文章需要重新构建部署。
+
+#### 缓存机制 vs 热更新
+
+- **2分钟缓存**: 用于性能优化，减少重复文件读取
+- **不是热更新**: 新增文章需要重新构建项目
+- **构建时生成**: 所有文章在 `npm run build` 时预渲染
+
+### 添加新文章的工作流程
+
+#### 方式一：GitHub Actions 自动部署（推荐）
+
+1. **创建文章**
+   ```bash
+   # 在 posts/ 目录下添加新的 .md 文件
+   echo "---
+title: 我的新文章
+category: tech
+tags: ['Next.js', 'React']
+---
+
+# 文章内容..." > posts/my-new-article.md
+   ```
+
+2. **提交到 GitHub**
+   ```bash
+   git add posts/my-new-article.md
+   git commit -m "feat: add new article about..."
+   git push origin main
+   ```
+
+3. **自动触发部署**
+   - GitHub Actions 检测到 main 分支推送
+   - 自动构建项目并部署到 Vercel
+   - 约 2-3 分钟后新文章上线
+
+#### 方式二：Vercel 手动部署
+
+1. **本地添加文章**（同上）
+2. **推送到 GitHub**（同上）
+3. **Vercel 自动部署**
+   - Vercel 检测到代码变更
+   - 自动重新构建和部署
+
+#### 方式三：本地构建部署
+
+```bash
+# 1. 添加文章后，本地构建
+npm run build
+
+# 2. 手动上传构建产物
+# 或使用 Vercel CLI
+npx vercel --prod
+```
+
+### Vercel 部署配置
+
+#### 初次部署
 
 1. 推送代码到 GitHub
 2. 在 Vercel 中导入项目
-3. 自动检测 Next.js 配置并部署
+3. 配置构建命令：
+   ```
+   Build Command: npm run build
+   Output Directory: out
+   Install Command: npm install
+   ```
+4. 自动检测 Next.js 配置并部署
 
-### 手动部署
+#### GitHub Actions 集成
+
+项目已配置 GitHub Actions，支持：
+- **推送触发**: 推送到 main 分支自动部署
+- **PR 检查**: Pull Request 自动运行构建测试
+- **手动触发**: 在 Actions 页面手动运行部署
+
+**自动部署流程**:
+```
+文章编写 → Git 提交 → GitHub 推送 → Actions 构建 → Vercel 部署 → 网站更新
+```
+
+### 内容管理最佳实践
+
+#### 📝 写作流程
+
+1. **创建分支**（可选，用于草稿）
+   ```bash
+   git checkout -b draft/my-article
+   ```
+
+2. **编写文章**
+   ```bash
+   # 在 posts/ 目录下创建文件
+   vim posts/my-article.md
+   ```
+
+3. **本地预览**
+   ```bash
+   npm run dev
+   # 访问 http://localhost:3000 预览效果
+   ```
+
+4. **提交发布**
+   ```bash
+   git add .
+   git commit -m "feat: add article about XXX"
+   git push origin main  # 推送到主分支触发部署
+   ```
+
+#### 🚀 批量发布
+
+如果需要一次性发布多篇文章：
 
 ```bash
-npm run build
-# 生成的静态文件在 out/ 目录
+# 1. 准备多篇文章
+mkdir -p posts/batch-articles
+echo "文章1内容" > posts/batch-articles/article-1.md
+echo "文章2内容" > posts/batch-articles/article-2.md
+
+# 2. 一次性提交
+git add posts/batch-articles/
+git commit -m "feat: batch publish articles"
+git push origin main
 ```
+
+#### 📊 部署监控
+
+- **Vercel Dashboard**: 查看部署状态和日志
+- **GitHub Actions**: 查看构建过程和错误
+- **本地测试**: 使用 `npm run build` 验证构建
+
+### 常见问题
+
+#### Q: 为什么添加文章后网站没有更新？
+A: 本项目使用 SSG，需要重新构建。确保推送到了正确分支且 GitHub Actions 正常运行。
+
+#### Q: 如何加快部署速度？
+A: 
+1. 使用 Vercel CLI 直接部署
+2. 优化图片大小和数量
+3. 减少依赖包大小
+
+#### Q: 可以实现真正的热更新吗？
+A: 可以改为 SSR 模式，但会失去静态站点的性能优势。当前 SSG 模式更适合博客场景。
 
 ## 🤝 开发
 

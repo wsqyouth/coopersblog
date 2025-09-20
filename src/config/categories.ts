@@ -84,17 +84,6 @@ export const categoryMap: Record<string, CategoryConfig> = {
     order: 4
   },
 
-  // 新增分类示例（用户可以轻松添加）
-  '项目复盘': {
-    name: '项目复盘',
-    slug: 'project-review',
-    description: '项目总结与经验分享',
-    icon: '🔄',
-    color: '#722ed1',
-    showInNav: true,
-    order: 5
-  },
-
   // 支持多种key格式
   'project-review': {
     name: '项目复盘',
@@ -104,7 +93,18 @@ export const categoryMap: Record<string, CategoryConfig> = {
     color: '#722ed1',
     showInNav: true,
     order: 5
-  }
+  },
+
+  // 新增分类示例（用户可以轻松添加）
+  'other': {
+    name: '其它',
+    slug: 'other',
+    description: '其它类型文章',
+    icon: '📦',
+    color: '#8c8c8c',
+    showInNav: false,
+    order: 6
+  },
 }
 
 /** 

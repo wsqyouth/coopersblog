@@ -44,93 +44,125 @@ function extractCategoryFromPath(filePath: string): string {
   return 'other'
 }
 
-// 示例文章数据 - 只保留一份
-export const mockPosts: BlogPost[] = [
+// 默认兜底文章数据 - 当所有文章被删除时的 Markdown 语法模板
+export const defaultPosts: BlogPost[] = [
   {
-    id: 'hello-world',
-    slug: 'hello-world',
-    title: 'Hello World - 我的第一篇博客文章',
-    excerpt: '欢迎来到我的博客！这是第一篇文章，介绍了博客的基本功能和特色。',
-    content: `# Hello World - 欢迎来到我的博客
+    id: 'markdown-template',
+    slug: 'markdown-template',
+    title: 'Markdown 语法演示模板',
+    excerpt: '这是一个 Markdown 语法演示模板，展示了 Markdown 的基本语法和格式。',
+    content: `# Markdown 语法演示
 
-欢迎来到我的个人博客！这是我的第一篇文章，我想在这里分享一下创建这个博客的经历和想法。
+这是一级标题，用于文档的主标题。
 
-## 为什么要创建这个博客？
+## 二级标题
 
-在数字化时代，拥有一个自己的博客就像拥有一个数字化的家。这里是我表达想法、分享知识和记录成长的地方。
+这是二级标题，用于主要章节。
 
-### 主要目的：
+### 三级标题
 
-1. **知识分享** - 分享我在技术领域的学习心得
-2. **思考记录** - 记录日常的思考和感悟
-3. **技术交流** - 与志同道合的朋友交流技术
-4. **个人成长** - 通过写作促进自己的思考和表达能力
+这是三级标题，用于子章节。
 
-## 博客的技术栈
+## 文本格式
 
-这个博客使用了现代化的技术栈来构建：
+**粗体文本**使用两个星号包围。
 
-### 前端技术
-- **Next.js 15** - React 全栈框架
-- **React 19** - 用户界面库
-- **TypeScript** - 类型安全的 JavaScript
-- **Tailwind CSS** - 实用优先的 CSS 框架
+*斜体文本*使用一个星号包围。
 
-### 内容管理
-- **Markdown** - 文章写作格式
-- **Gray Matter** - Front Matter 解析
-- **Remark** - Markdown 处理
+\`行内代码\`使用反引号包围。
 
-## 代码示例
+~~删除线文本~~使用两个波浪号包围。
 
-让我展示一个简单的 React 组件：
+## 列表
 
-\`\`\`tsx
-import React from 'react'
+### 无序列表
+- 列表项目 1
+- 列表项目 2
+  - 嵌套列表项目
+  - 另一个嵌套项目
+- 列表项目 3
 
-interface GreetingProps {
-  name: string
+### 有序列表
+1. 第一项
+2. 第二项
+3. 第三项
+
+## 代码块
+
+\`\`\`javascript
+// JavaScript 代码示例
+function helloWorld() {
+  console.log("Hello, World!");
+  return "Welcome to Markdown!";
 }
 
-export function Greeting({ name }: GreetingProps) {
-  return (
-    <div className="p-4 bg-blue-100 rounded-lg">
-      <h1 className="text-2xl font-bold text-blue-800">
-        Hello, {name}!
-      </h1>
-      <p className="text-blue-600">
-        欢迎来到我的博客！
-      </p>
-    </div>
-  )
-}
+helloWorld();
 \`\`\`
 
-> 这只是开始，精彩还在后面。让我们一起在技术的道路上前行！`,
-    date: '2024-01-15',
-    publishedAt: '2024-01-15',
+\`\`\`python
+# Python 代码示例
+def hello_world():
+    print("Hello, World!")
+    return "Welcome to Markdown!"
+
+hello_world()
+\`\`\`
+
+## 引用
+
+> 这是一个引用块，用于引用他人的话语或重要信息。
+> 
+> 引用可以跨越多行，保持良好的格式。
+
+## 链接和图片
+
+[这是一个链接](https://example.com)
+
+![图片描述](https://via.placeholder.com/400x200?text=Sample+Image)
+
+## 表格
+
+| 列标题 1 | 列标题 2 | 列标题 3 |
+|---------|---------|---------|
+| 行 1 列 1 | 行 1 列 2 | 行 1 列 3 |
+| 行 2 列 1 | 行 2 列 2 | 行 2 列 3 |
+| 行 3 列 1 | 行 3 列 2 | 行 3 列 3 |
+
+## 分割线
+
+---
+
+## 任务列表
+
+- [x] 已完成的任务
+- [ ] 未完成的任务
+- [ ] 另一个未完成的任务
+
+这个模板展示了 Markdown 的主要语法元素，可以作为写作参考。`,
+    date: new Date().toISOString().split('T')[0],
+    publishedAt: new Date().toISOString().split('T')[0],
     category: {
-      name: '思考笔记',
-      slug: 'thinking',
-      icon: '🤔'
+      name: '示例',
+      slug: 'example',
+      icon: '📝'
     },
-    tags: ['博客', 'Next.js', 'React'],
-    author: 'Cooper',
+    tags: ['Markdown', '语法', '模板'],
+    author: 'System',
     status: 'published' as const,
-    featured: true,
-    coverImage: '/images/posts/hello-world.svg',
-    wordCount: 800,
-    readingTime: 4,
-    views: 1250,
-    filePath: 'posts/thinking/hello-world.md'
+    featured: false,
+    coverImage: '/images/common/markdown.svg',
+    wordCount: 320,
+    readingTime: 2,
+    views: 0,
+    filePath: 'default/markdown-template.md'
   }
 ]
 
-// 标签数据 - 只保留相关的
-export const mockTags: Tag[] = [
-  { id: '1', name: '博客', slug: 'blog', postCount: 1 },
-  { id: '2', name: 'Next.js', slug: 'nextjs', postCount: 1 },
-  { id: '3', name: 'React', slug: 'react', postCount: 1 }
+// 默认标签数据
+export const defaultTags: Tag[] = [
+  { id: '1', name: 'Markdown', slug: 'markdown', postCount: 1 },
+  { id: '2', name: '语法', slug: 'syntax', postCount: 1 },
+  { id: '3', name: '模板', slug: 'template', postCount: 1 }
 ]
 
 // 扫描所有 markdown 文件
@@ -234,7 +266,7 @@ async function readMarkdownFile(filePath: string): Promise<BlogPost | null> {
     }
     
     // 使用原有的 mock 数据作为默认值
-    const mockPost = mockPosts.find(post => post.slug === slug) || mockPosts[0]
+    const defaultPost = defaultPosts.find(post => post.slug === slug) || defaultPosts[0]
     
     return {
       id,
@@ -242,17 +274,17 @@ async function readMarkdownFile(filePath: string): Promise<BlogPost | null> {
       title,
       excerpt,
       content,
-      date: frontMatter.date || mockPost.date,
-      publishedAt: frontMatter.publishedAt || frontMatter.date || mockPost.publishedAt,
+      date: frontMatter.date || defaultPost.date,
+      publishedAt: frontMatter.publishedAt || frontMatter.date || defaultPost.publishedAt,
       category: categoryData,
-      tags: tags.length > 0 ? tags : mockPost.tags,
-      author: frontMatter.author || mockPost.author,
-      status: (frontMatter.status as any) || mockPost.status,
-      featured: frontMatter.featured !== undefined ? frontMatter.featured : mockPost.featured,
-      coverImage: frontMatter.coverImage || mockPost.coverImage,
+      tags: tags.length > 0 ? tags : defaultPost.tags,
+      author: frontMatter.author || defaultPost.author,
+      status: (frontMatter.status as any) || defaultPost.status,
+      featured: frontMatter.featured !== undefined ? frontMatter.featured : defaultPost.featured,
+      coverImage: frontMatter.coverImage || defaultPost.coverImage,
       wordCount: frontMatter.wordCount || content.length,
       readingTime: frontMatter.readingTime || calculateReadingTime(content.length),
-      views: frontMatter.views || mockPost.views,
+      views: frontMatter.views || defaultPost.views,
       filePath
     }
   } catch (error) {
@@ -266,8 +298,8 @@ async function readAllMarkdownFiles(): Promise<BlogPost[]> {
   const markdownFiles = scanMarkdownFiles()
   
   if (markdownFiles.length === 0) {
-    console.warn('No markdown files found, falling back to mock data')
-    return mockPosts
+    console.warn('No markdown files found, falling back to default template')
+    return defaultPosts
   }
   
   console.log(`Found ${markdownFiles.length} markdown files, reading concurrently...`)
@@ -310,10 +342,10 @@ async function readAllMarkdownFiles(): Promise<BlogPost[]> {
   
   console.log(`Successfully read ${successCount} files, ${errorCount} errors, ${duplicateCount} duplicates skipped`)
   
-  // 如果没有成功读取任何文件，回退到 mock 数据
+  // 如果没有成功读取任何文件，回退到默认模板数据
   if (posts.length === 0) {
-    console.warn('No markdown files could be read, falling back to mock data')
-    return mockPosts
+    console.warn('No markdown files could be read, falling back to default template')
+    return defaultPosts
   }
   
   return posts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
@@ -352,9 +384,9 @@ export async function getAllPosts(forceRefresh: boolean = false): Promise<BlogPo
       return cachedPosts
     }
     
-    // 最后回退到 mock 数据
-    console.log('Falling back to mock data')
-    return mockPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    // 最后回退到默认模板数据
+    console.log('Falling back to default template')
+    return defaultPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
   }
 }
 
@@ -420,7 +452,7 @@ export async function getAllTags(): Promise<Tag[]> {
   
   // 生成标签对象，优先使用预定义的slug，否则自动生成
   const tags: Tag[] = Array.from(tagMap.entries()).map(([tagName, data]) => {
-    const predefinedTag = mockTags.find(t => t.name === tagName)
+    const predefinedTag = defaultTags.find(t => t.name === tagName)
     return {
       id: predefinedTag?.id || generateTagId(tagName),
       name: tagName,
@@ -597,7 +629,7 @@ export async function getPostsByTag(tagSlug: string): Promise<BlogPost[]> {
 // 标签名称到slug的映射
 export function getTagSlugByName(tagName: string): string {
   // 先检查预定义的映射
-  const predefinedTag = mockTags.find(t => t.name === tagName)
+  const predefinedTag = defaultTags.find(t => t.name === tagName)
   if (predefinedTag) return predefinedTag.slug
   
   // 使用与 generateTagSlug 相同的逻辑

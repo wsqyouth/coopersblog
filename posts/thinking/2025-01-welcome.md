@@ -14,7 +14,7 @@ cover: "/images/common/welcome.jpg"
 
 ## 关于这个博客
 
-这个博客是基于 **Next.js 14** + **React 18** + **Ant Design 5.x** 技术栈构建的静态博客网站。
+这个博客是基于 **Next.js 15** + **React 19** 技术栈构建的现代化静态博客网站，追求简洁高效的设计理念。
 
 ### 主要功能
 
@@ -28,12 +28,12 @@ cover: "/images/common/welcome.jpg"
 
 ```typescript
 const techStack = {
-  framework: 'Next.js 14',
-  ui: 'Ant Design 5.x',
+  framework: 'Next.js 15',
+  ui: 'Custom Components + Lucide Icons',
   language: 'TypeScript',
   styling: 'Tailwind CSS',
-  deployment: 'Vercel',
-  cdn: 'Cloudflare'
+  markdown: 'Remark + Gray Matter',
+  deployment: 'Vercel'
 }
 ```
 

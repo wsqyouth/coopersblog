@@ -9,11 +9,6 @@ export default async function Home() {
       {/* 页面标题 */}
       <div className="mb-12">
         <h1 className="text-3xl font-bold mb-2">Posts</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>RSS</span>
-          <span>·</span>
-          <span>Feed</span>
-        </div>
       </div>
 
       {/* 文章列表 */}
