@@ -56,7 +56,6 @@ export function TagList({
     )
 
     // 生成绝对唯一的 key，结合多个因素确保不重复
-    const safeName = tag.name && tag.name.trim() ? tag.name.trim() : `unnamed`
     const safeSlug = tag.slug && tag.slug.trim() ? tag.slug.trim() : `slug-${index}`
     const safeId = tag.id && tag.id.trim() ? tag.id.trim() : `id-${index}`
     

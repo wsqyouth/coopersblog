@@ -6,7 +6,7 @@ import { PostMeta, PostMetaSimple } from './PostMeta'
 import { TagList } from './TagList'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
-import { getTagSlugByName } from '@/lib/blog-data'
+import { getTagSlugByName } from '@/lib/client-utils'
 import type { BlogPost } from '@/types/blog'
 
 export interface PostCardProps {

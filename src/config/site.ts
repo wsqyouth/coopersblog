@@ -178,7 +178,7 @@ export const analyticsConfig = {
   /** 是否在开发环境启用分析 */
   enableInDev: false,
   /** 是否启用调试模式 */
-  debug: process.env.NODE_ENV === 'development',
+  debug: false,
 } as const
 
 /** 图片配置 */

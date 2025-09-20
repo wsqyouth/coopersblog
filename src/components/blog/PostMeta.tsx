@@ -1,8 +1,7 @@
 import { formatDistanceToNow, format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
 import { CalendarIcon, ClockIcon, EyeIcon, UserIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { calculateReadingTime, formatWordCount } from '@/lib/blog-data'
+import { calculateReadingTime, formatWordCount } from '@/lib/client-utils'
 
 export interface PostMetaProps {
   date: string | Date
@@ -32,9 +31,9 @@ export function PostMeta({
 
   const formatDate = (date: Date) => {
     if (showRelativeTime) {
-      return formatDistanceToNow(date, { addSuffix: true, locale: zhCN })
+      return formatDistanceToNow(date, { addSuffix: true })
     }
-    return format(date, 'yyyy年MM月dd日', { locale: zhCN })
+    return format(date, 'yyyy-MM-dd')
   }
 
   const metaItems = [
@@ -196,7 +195,7 @@ export function PostMetaInline({
   
   return (
     <span className={cn('text-sm text-muted-foreground', className)}>
-      发布于 {format(dateObject, 'yyyy年MM月dd日', { locale: zhCN })}
+      发布于 {format(dateObject, 'yyyy-MM-dd')}
       {author && ` · 作者 ${author}`}
     </span>
   )

@@ -2,14 +2,10 @@
  * HelloWorld 示例工具页面
  */
 
-import React from 'react'
-import { Metadata } from 'next'
-import Link from 'next/link'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Hello World - 工具示例',
-  description: '简单的 Hello World 示例工具，演示工具页面的基础结构',
-}
+import React from 'react'
+import Link from 'next/link'
 
 export default function HelloWorldPage() {
   return (

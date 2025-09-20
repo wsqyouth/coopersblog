@@ -12,10 +12,8 @@ interface CategoryPageProps {
 }
 
 export async function generateStaticParams() {
-  // 在开发模式下不预生成静态参数，支持动态路由
-  if (process.env.NODE_ENV === 'development') {
-    return []
-  }
+  // 支持动态路由，不预生成静态参数
+  return []
   
   try {
     const categories = await getAllCategories()
