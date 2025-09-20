@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor - Ultimate Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css" id="highlight-theme">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.2.12/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Light theme colors */
+            --header-bg: #ffffff;
+            --header-border: #e1e4e8;
+            --menu-hover: #f6f8fa;
+            --menu-active: #0969da;
+            --text-color: #24292f;
+            --bg-color: #ffffff;
+            --border-color: #d0d7de;
+            --editor-bg: #ffffff;
+            --editor-text: #24292f;
+            --preview-bg: #ffffff;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        /* Editor Dark Theme */
+        body.editor-dark {
+            --header-bg: #0d1117;
+            --header-border: #21262d;
+            --menu-hover: #21262d;
+            --text-color: #f0f6fc;
+            --bg-color: #0d1117;
+            --border-color: #30363d;
+            --editor-bg: #0d1117;
+            --editor-text: #f0f6fc;
+        }
+
+        /* Header */
+        .header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--header-border);
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 40px;
+            position: relative;
+            z-index: 100;
+        }
+
+        /* Left Menu */
+        .left-menu {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        /* Right Menu */
+        .right-menu {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .menu-item {
+            position: relative;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            user-select: none;
+            color: #656d76;
+        }
+
+        .menu-item:hover {
+            background-color: var(--menu-hover);
+            color: var(--text-color);
+        }
+
+        .fullscreen-btn {
+            padding: 4px 8px;
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #656d76;
+        }
+
+        .fullscreen-btn:hover {
+            background-color: var(--menu-hover);
+            color: var(--text-color);
+        }
+
+        .fullscreen-btn.active {
+            background-color: var(--menu-active);
+            color: white;
+            border-color: var(--menu-active);
+        }
+
+        /* Preview Controls */
+        .preview-controls {
+            display: flex;
+            gap: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .preview-mode-btn {
+            padding: 3px 6px;
+            background: none;
+            border: none;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #656d76;
+        }
+
+        .preview-mode-btn:hover {
+            background-color: var(--menu-hover);
+        }
+
+        .preview-mode-btn.active {
+            background-color: var(--menu-active);
+            color: white;
+        }
+
+        /* Dropdown Menu */
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--header-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            min-width: 120px;
+            padding: 4px 0;
+            z-index: 1000;
+            display: none;
+            margin-top: 2px;
+        }
+
+        .dropdown.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            font-size: 12px;
+            color: var(--text-color);
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--menu-hover);
+        }
+
+        .dropdown-item.active {
+            background-color: var(--menu-active);
+            color: white;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 2px 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 40px);
+            transition: all 0.3s ease;
+        }
+
+        .main-content.fullscreen .preview-section {
+            display: none;
+        }
+
+        .main-content.fullscreen .editor-section {
+            flex: 1;
+            border-right: none;
+        }
+
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .preview-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #656d76;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Editor */
+        .editor {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 20px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            background-color: var(--editor-bg);
+            color: var(--editor-text);
+            tab-size: 4;
+            font-weight: 400;
+        }
+
+        .editor:focus {
+            outline: none;
+        }
+
+        /* Preview */
+        .preview-container {
+            flex: 1;
+            overflow-y: auto;
+            background-color: var(--preview-bg);
+        }
+
+        .preview-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .preview-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .preview-container::-webkit-scrollbar-thumb {
+            background: #d0d7de;
+            border-radius: 3px;
+        }
+
+        .preview-container::-webkit-scrollbar-thumb:hover {
+            background: #a8b3c1;
+        }
+
+        .preview {
+            padding: 30px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.75;
+            color: #333;
+            font-size: 16px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        /* Mobile preview mode */
+        .preview-container.mobile-mode {
+            background-color: #f6f8fa;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .preview-container.mobile-mode .preview {
+            max-width: 375px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            margin: 0;
+        }
+
+        /* Default Theme - 参考优秀编辑器的配色方案 */
+        .preview.theme-default {
+            color: #333;
+            background-color: #fff;
+        }
+
+        .preview.theme-default h1,
+        .preview.theme-default h2,
+        .preview.theme-default h3,
+        .preview.theme-default h4,
+        .preview.theme-default h5,
+        .preview.theme-default h6 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            line-height: 1.2;
+        }
+
+        .preview.theme-default h1 {
+            font-size: 2.2em;
+            padding-bottom: 0.3em;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 1em;
+        }
+
+        .preview.theme-default h2 {
+            font-size: 1.8em;
+            color: #27ae60;
+            margin-top: 1.8em;
+        }
+
+        .preview.theme-default h3 {
+            font-size: 1.5em;
+            color: #27ae60;
+        }
+
+        .preview.theme-default h4 {
+            font-size: 1.3em;
+            color: #2980b9;
+        }
+
+        .preview.theme-default h5 {
+            font-size: 1.1em;
+            color: #2980b9;
+        }
+
+        .preview.theme-default h6 {
+            font-size: 1em;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        /* Geek Theme - 优化暗色主题 */
+        .preview.theme-geek {
+            background-color: #0d1117;
+            color: #e6edf3;
+        }
+
+        .preview.theme-geek h1,
+        .preview.theme-geek h2,
+        .preview.theme-geek h3,
+        .preview.theme-geek h4,
+        .preview.theme-geek h5,
+        .preview.theme-geek h6 {
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            line-height: 1.2;
+        }
+
+        .preview.theme-geek h1 {
+            font-size: 2.2em;
+            color: #a5a5ff;
+            padding-bottom: 0.3em;
+            border-bottom: 2px solid #30363d;
+            margin-bottom: 1em;
+        }
+
+        .preview.theme-geek h2 {
+            font-size: 1.8em;
+            color: #7dd3fc;
+            margin-top: 1.8em;
+        }
+
+        .preview.theme-geek h3 {
+            font-size: 1.5em;
+            color: #86efac;
+        }
+
+        .preview.theme-geek h4 {
+            font-size: 1.3em;
+            color: #58a6ff;
+        }
+
+        .preview.theme-geek h5 {
+            font-size: 1.1em;
+            color: #58a6ff;
+        }
+
+        .preview.theme-geek h6 {
+            font-size: 1em;
+            color: #8b949e;
+        }
+
+        /* 段落和文本 */
+        .preview p {
+            margin-bottom: 1.2em;
+            line-height: 1.75;
+            text-align: justify;
+        }
+
+        .preview p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 链接样式 */
+        .preview.theme-default a {
+            color: #3498db;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .preview.theme-default a:hover {
+            color: #2980b9;
+            border-bottom: 1px solid #3498db;
+        }
+
+        .preview.theme-geek a {
+            color: #58a6ff;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .preview.theme-geek a:hover {
+            color: #79c0ff;
+            border-bottom: 1px solid #58a6ff;
+        }
+
+        /* 列表样式 */
+        .preview ul, .preview ol {
+            margin: 1.2em 0;
+            padding-left: 2em;
+        }
+
+        .preview li {
+            margin: 0.5em 0;
+            line-height: 1.6;
+        }
+
+        .preview ul ul, .preview ol ol, .preview ul ol, .preview ol ul {
+            margin: 0.3em 0;
+        }
+
+        /* 引用块样式 */
+        .preview.theme-default blockquote {
+            margin: 1.5em 0;
+            padding: 1em 1.5em;
+            background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+            border-left: 4px solid #3498db;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            color: #555;
+            position: relative;
+        }
+
+        .preview.theme-default blockquote::before {
+            content: '"';
+            font-size: 4em;
+            color: #3498db;
+            position: absolute;
+            left: 0.3em;
+            top: -0.1em;
+            opacity: 0.3;
+        }
+
+        .preview.theme-geek blockquote {
+            margin: 1.5em 0;
+            padding: 1em 1.5em;
+            background: linear-gradient(90deg, #161b22 0%, #0d1117 100%);
+            border-left: 4px solid #58a6ff;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            color: #8b949e;
+        }
+
+        .preview blockquote p {
+            margin: 0;
+        }
+
+        /* 表格样式 - 大幅优化 */
+        .preview table {
+            border-collapse: collapse;
+            margin: 2em 0;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            font-size: 0.9em;
+        }
+
+        .preview.theme-default table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1em;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        .preview.theme-default table td {
+            padding: 0.8em 1em;
+            border: none;
+            border-bottom: 1px solid #e9ecef;
+            background: white;
+        }
+
+        .preview.theme-default table tr:nth-child(even) td {
+            background: #f8f9fa;
+        }
+
+        .preview.theme-default table tr:hover td {
+            background: #e3f2fd;
+            transition: background-color 0.2s ease;
+        }
+
+        .preview.theme-geek table th {
+            background: linear-gradient(135deg, #1f6feb 0%, #6f57ff 100%);
+            color: white;
+            padding: 1em;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .preview.theme-geek table td {
+            padding: 0.8em 1em;
+            border: none;
+            border-bottom: 1px solid #30363d;
+            background: #161b22;
+        }
+
+        .preview.theme-geek table tr:nth-child(even) td {
+            background: #0d1117;
+        }
+
+        .preview.theme-geek table tr:hover td {
+            background: #21262d;
+        }
+
+        /* 代码样式 - 大幅优化 */
+        .preview.theme-default pre {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 1.5em;
+            margin: 1.5em 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .preview.theme-default pre::before {
+            content: '';
+            position: absolute;
+            top: 1em;
+            left: 1em;
+            width: 12px;
+            height: 12px;
+            background: #ff5f56;
+            border-radius: 50%;
+            box-shadow: 20px 0 #ffbd2e, 40px 0 #27ca3f;
+        }
+
+        .preview.theme-default pre code {
+            color: white;
+            background: none;
+            padding: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            display: block;
+            margin-top: 1.5em;
+        }
+
+        .preview.theme-geek pre {
+            background: #161b22;
+            border-radius: 10px;
+            padding: 1.5em;
+            margin: 1.5em 0;
+            overflow-x: auto;
+            border: 1px solid #30363d;
+        }
+
+        .preview.theme-geek pre code {
+            color: #e6edf3;
+            background: none;
+            padding: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+        }
+
+        /* 行内代码 */
+        .preview.theme-default p code,
+        .preview.theme-default li code {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: #2c3e50;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(255, 154, 158, 0.3);
+        }
+
+        .preview.theme-geek p code,
+        .preview.theme-geek li code {
+            background: #6f42c1;
+            color: #f0f6fc;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        /* 分割线 */
+        .preview.theme-default hr {
+            border: none;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #3498db, transparent);
+            margin: 3em 0;
+            border-radius: 2px;
+        }
+
+        .preview.theme-geek hr {
+            border: none;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #58a6ff, transparent);
+            margin: 3em 0;
+            border-radius: 2px;
+        }
+
+        /* 强调样式 */
+        .preview.theme-default strong {
+            font-weight: 700;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+        }
+
+        .preview.theme-geek strong {
+            font-weight: 700;
+            color: #f0f6fc;
+        }
+
+        .preview em {
+            font-style: italic;
+            color: inherit;
+        }
+
+        .preview del {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        /* 图片样式 */
+        .preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 1em 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .preview img:hover {
+            transform: scale(1.02);
+        }
+
+        /* 数学公式样式 */
+        .preview .math {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            color: #2c3e50;
+        }
+
+        .preview.theme-geek .math {
+            background: #6f42c1;
+            color: #f0f6fc;
+        }
+
+        .preview .math-block {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5em;
+            border-radius: 8px;
+            margin: 1.5em 0;
+            text-align: center;
+            overflow-x: auto;
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1em;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .preview.theme-geek .math-block {
+            background: #161b22;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+        }
+
+        /* Code Themes */
+        .code-theme-geek .preview.theme-default pre {
+            background: #161b22;
+        }
+
+        .code-theme-geek .preview.theme-default pre code {
+            color: #e6edf3;
+        }
+
+        /* Hidden file input */
+        .file-input {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 8px;
+                flex-wrap: wrap;
+                height: auto;
+                min-height: 40px;
+            }
+            
+            .left-menu, .right-menu {
+                gap: 8px;
+            }
+            
+            .main-content {
+                flex-direction: column;
+                height: calc(100vh - 50px);
+            }
+            
+            .editor-section, .preview-section {
+                flex: 1;
+                min-height: 250px;
+            }
+            
+            .editor-section {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .editor, .preview {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="left-menu">
+            <div class="menu-item" id="file-menu">
+                文件
+                <div class="dropdown" id="file-dropdown">
+                    <div class="dropdown-item" id="import-file">导入</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" id="export-md">导出 MD</div>
+                    <div class="dropdown-item" id="export-html">导出 HTML</div>
+                    <div class="dropdown-item" id="export-png">导出 PNG</div>
+                </div>
+            </div>
+            
+            <div class="menu-item" id="editor-theme-menu">
+                编辑器主题
+                <div class="dropdown" id="editor-theme-dropdown">
+                    <div class="dropdown-item active" id="editor-light">白色</div>
+                    <div class="dropdown-item" id="editor-dark">暗色</div>
+                </div>
+            </div>
+            
+            <div class="menu-item" id="theme-menu">
+                排版主题
+                <div class="dropdown" id="theme-dropdown">
+                    <div class="dropdown-item active" id="theme-default">默认</div>
+                    <div class="dropdown-item" id="theme-geek">极客</div>
+                </div>
+            </div>
+            
+            <div class="menu-item" id="code-menu">
+                代码主题
+                <div class="dropdown" id="code-dropdown">
+                    <div class="dropdown-item active" id="code-default">默认</div>
+                    <div class="dropdown-item" id="code-geek">极客</div>
+                </div>
+            </div>
+            
+            <button class="fullscreen-btn" id="fullscreen-btn">全屏</button>
+        </div>
+        
+        <div class="right-menu">
+            <span style="font-size: 11px; color: #656d76;">实时预览</span>
+            <div class="preview-controls">
+                <button class="preview-mode-btn active" id="desktop-mode">🖥️</button>
+                <button class="preview-mode-btn" id="mobile-mode">📱</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content" id="main-content">
+        <div class="editor-section">
+            <div class="section-header">Markdown</div>
+            <textarea class="editor" id="editor" placeholder="开始编写..."></textarea>
+        </div>
+
+        <div class="preview-section">
+            <div class="section-header">Preview</div>
+            <div class="preview-container" id="preview-container">
+                <div class="preview theme-default" id="preview"></div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" class="file-input" id="file-input" accept=".md,.markdown,.txt">
+
+    <script>
+        class MarkdownEditor {
+            constructor() {
+                this.editor = document.getElementById('editor');
+                this.preview = document.getElementById('preview');
+                this.previewContainer = document.getElementById('preview-container');
+                this.mainContent = document.getElementById('main-content');
+                this.fileInput = document.getElementById('file-input');
+                this.fullscreenBtn = document.getElementById('fullscreen-btn');
+                
+                this.currentEditorTheme = 'light';
+                this.currentTheme = 'default';
+                this.currentCodeTheme = 'default';
+                this.currentPreviewMode = 'desktop';
+                this.isFullscreen = false;
+                
+                this.codeThemes = {
+                    default: 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css',
+                    geek: 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css'
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.setupMarked();
+                this.bindEvents();
+                this.loadDefaultContent();
+                this.updatePreview();
+            }
+
+            setupMarked() {
+                marked.setOptions({
+                    highlight: (code, lang) => {
+                        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                        return hljs.highlight(code, { language }).value;
+                    },
+                    langPrefix: 'hljs language-',
+                    breaks: true,
+                    gfm: true
+                });
+            }
+
+            bindEvents() {
+                // Editor input
+                this.editor.addEventListener('input', () => this.updatePreview());
+                
+                // Tab support
+                this.editor.addEventListener('keydown', this.handleTabKey.bind(this));
+                
+                // Menu events
+                this.bindMenuEvents();
+                
+                // Fullscreen
+                this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+                
+                // Preview mode events
+                document.getElementById('desktop-mode').addEventListener('click', () => this.setPreviewMode('desktop'));
+                document.getElementById('mobile-mode').addEventListener('click', () => this.setPreviewMode('mobile'));
+                
+                // File input
+                this.fileInput.addEventListener('change', this.handleFileImport.bind(this));
+                
+                // Close dropdowns when clicking outside
+                document.addEventListener('click', this.closeDropdowns.bind(this));
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'F11') {
+                        e.preventDefault();
+                        this.toggleFullscreen();
+                    }
+                });
+            }
+
+            bindMenuEvents() {
+                // File menu
+                document.getElementById('file-menu').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleDropdown('file-dropdown');
+                });
+                
+                document.getElementById('import-file').addEventListener('click', () => {
+                    this.fileInput.click();
+                    this.closeDropdowns({ target: {} });
+                });
+                
+                document.getElementById('export-md').addEventListener('click', () => {
+                    this.exportMarkdown();
+                    this.closeDropdowns({ target: {} });
+                });
+                document.getElementById('export-html').addEventListener('click', () => {
+                    this.exportHTML();
+                    this.closeDropdowns({ target: {} });
+                });
+                document.getElementById('export-png').addEventListener('click', () => {
+                    this.exportPNG();
+                    this.closeDropdowns({ target: {} });
+                });
+                
+                // Editor theme menu
+                document.getElementById('editor-theme-menu').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleDropdown('editor-theme-dropdown');
+                });
+                
+                document.getElementById('editor-light').addEventListener('click', () => this.setEditorTheme('light'));
+                document.getElementById('editor-dark').addEventListener('click', () => this.setEditorTheme('dark'));
+                
+                // Theme menu
+                document.getElementById('theme-menu').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleDropdown('theme-dropdown');
+                });
+                
+                document.getElementById('theme-default').addEventListener('click', () => this.setTheme('default'));
+                document.getElementById('theme-geek').addEventListener('click', () => this.setTheme('geek'));
+                
+                // Code theme menu
+                document.getElementById('code-menu').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleDropdown('code-dropdown');
+                });
+                
+                document.getElementById('code-default').addEventListener('click', () => this.setCodeTheme('default'));
+                document.getElementById('code-geek').addEventListener('click', () => this.setCodeTheme('geek'));
+            }
+
+            toggleDropdown(dropdownId) {
+                document.querySelectorAll('.dropdown').forEach(dropdown => {
+                    if (dropdown.id !== dropdownId) {
+                        dropdown.classList.remove('show');
+                    }
+                });
+                
+                const dropdown = document.getElementById(dropdownId);
+                dropdown.classList.toggle('show');
+            }
+
+            closeDropdowns(e) {
+                if (!e.target.closest('.menu-item')) {
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        dropdown.classList.remove('show');
+                    });
+                }
+            }
+
+            toggleFullscreen() {
+                this.isFullscreen = !this.isFullscreen;
+                
+                if (this.isFullscreen) {
+                    this.mainContent.classList.add('fullscreen');
+                    this.fullscreenBtn.textContent = '退出全屏';
+                    this.fullscreenBtn.classList.add('active');
+                } else {
+                    this.mainContent.classList.remove('fullscreen');
+                    this.fullscreenBtn.textContent = '全屏';
+                    this.fullscreenBtn.classList.remove('active');
+                }
+            }
+
+            setEditorTheme(theme) {
+                this.currentEditorTheme = theme;
+                
+                if (theme === 'dark') {
+                    document.body.classList.add('editor-dark');
+                } else {
+                    document.body.classList.remove('editor-dark');
+                }
+                
+                // Update menu active state
+                document.querySelectorAll('#editor-theme-dropdown .dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.getElementById(`editor-${theme}`).classList.add('active');
+                
+                this.closeDropdowns({ target: {} });
+            }
+
+            updatePreview() {
+                let content = this.editor.value;
+                
+                // Simple math formula handling
+                content = content.replace(/\$\$([^$]+)\$\$/g, '<div class="math-block">$1</div>');
+                content = content.replace(/\$([^$]+)\$/g, '<span class="math">$1</span>');
+                
+                this.preview.innerHTML = marked.parse(content);
+                this.applyCurrentStyles();
+            }
+
+            applyCurrentStyles() {
+                this.preview.className = `preview theme-${this.currentTheme}`;
+                document.body.classList.toggle('code-theme-geek', this.currentCodeTheme === 'geek');
+            }
+
+            setTheme(theme) {
+                this.currentTheme = theme;
+                this.updatePreview();
+                
+                document.querySelectorAll('#theme-dropdown .dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.getElementById(`theme-${theme}`).classList.add('active');
+                
+                this.closeDropdowns({ target: {} });
+            }
+
+            setCodeTheme(theme) {
+                this.currentCodeTheme = theme;
+                document.getElementById('highlight-theme').href = this.codeThemes[theme];
+                this.updatePreview();
+                
+                document.querySelectorAll('#code-dropdown .dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.getElementById(`code-${theme}`).classList.add('active');
+                
+                this.closeDropdowns({ target: {} });
+            }
+
+            setPreviewMode(mode) {
+                this.currentPreviewMode = mode;
+                
+                if (mode === 'mobile') {
+                    this.previewContainer.classList.add('mobile-mode');
+                } else {
+                    this.previewContainer.classList.remove('mobile-mode');
+                }
+                
+                document.querySelectorAll('.preview-mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.getElementById(`${mode}-mode`).classList.add('active');
+            }
+
+            handleTabKey(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.editor.selectionStart;
+                    const end = this.editor.selectionEnd;
+                    this.editor.value = this.editor.value.substring(0, start) + '    ' + this.editor.value.substring(end);
+                    this.editor.selectionStart = this.editor.selectionEnd = start + 4;
+                }
+            }
+
+            handleFileImport(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.editor.value = e.target.result;
+                        this.updatePreview();
+                    };
+                    reader.readAsText(file);
+                }
+            }
+
+            // 生成带时间戳的文件名
+            generateFileName(baseName, extension) {
+                const now = new Date();
+                const timestamp = now.getFullYear() +
+                    String(now.getMonth() + 1).padStart(2, '0') +
+                    String(now.getDate()).padStart(2, '0') + '_' +
+                    String(now.getHours()).padStart(2, '0') +
+                    String(now.getMinutes()).padStart(2, '0') +
+                    String(now.getSeconds()).padStart(2, '0');
+                return `${baseName}_${timestamp}.${extension}`;
+            }
+
+            exportMarkdown() {
+                const content = this.editor.value;
+                const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                const filename = this.generateFileName('document', 'md');
+                this.downloadFile(blob, filename);
+            }
+
+            exportHTML() {
+                // 获取当前渲染样式的完整 HTML
+                const previewClone = this.preview.cloneNode(true);
+                const currentThemeStyles = this.getExportStyles();
+                
+                const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Export</title>
+    <link rel="stylesheet" href="${this.codeThemes[this.currentCodeTheme]}">
+    <style>
+        ${currentThemeStyles}
+    </style>
+</head>
+<body>
+    <div class="preview theme-${this.currentTheme}">
+        ${previewClone.innerHTML}
+    </div>
+</body>
+</html>`;
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const filename = this.generateFileName('document', 'html');
+                this.downloadFile(blob, filename);
+            }
+
+            getExportStyles() {
+                // 返回完整的导出样式，包括当前主题的所有样式
+                return `
+                    body {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 40px 20px;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+                        line-height: 1.75;
+                        color: ${this.currentTheme === 'geek' ? '#e6edf3' : '#333'};
+                        background-color: ${this.currentTheme === 'geek' ? '#0d1117' : '#fff'};
+                    }
+                    
+                    .preview.theme-default h1 { font-size: 2.2em; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+                    .preview.theme-default h2 { font-size: 1.8em; color: #27ae60; }
+                    .preview.theme-default h3 { font-size: 1.5em; color: #27ae60; }
+                    
+                    .preview.theme-geek h1 { font-size: 2.2em; color: #a5a5ff; border-bottom: 2px solid #30363d; padding-bottom: 0.3em; }
+                    .preview.theme-geek h2 { font-size: 1.8em; color: #7dd3fc; }
+                    .preview.theme-geek h3 { font-size: 1.5em; color: #86efac; }
+                    
+                    .preview p { margin-bottom: 1.2em; line-height: 1.75; }
+                    
+                    .preview.theme-default pre {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 1.5em;
+                        border-radius: 10px;
+                        overflow-x: auto;
+                    }
+                    
+                    .preview.theme-geek pre {
+                        background: #161b22;
+                        color: #e6edf3;
+                        padding: 1.5em;
+                        border-radius: 10px;
+                        border: 1px solid #30363d;
+                    }
+                    
+                    .preview.theme-default table {
+                        border-collapse: collapse;
+                        width: 100%;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                    }
+                    
+                    .preview.theme-default table th {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 1em;
+                    }
+                    
+                    .preview.theme-default table td {
+                        padding: 0.8em 1em;
+                        border-bottom: 1px solid #e9ecef;
+                    }
+                    
+                    .preview img { max-width: 100%; border-radius: 8px; }
+                `;
+            }
+
+            exportPNG() {
+                // 创建一个完整的预览容器用于导出
+                const exportContainer = document.createElement('div');
+                exportContainer.style.cssText = `
+                    position: absolute;
+                    top: -10000px;
+                    width: 800px;
+                    padding: 40px;
+                    background: ${this.currentTheme === 'geek' ? '#0d1117' : '#fff'};
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+                `;
+                
+                // 复制预览内容和样式
+                const previewClone = this.preview.cloneNode(true);
+                previewClone.className = `preview theme-${this.currentTheme}`;
+                exportContainer.appendChild(previewClone);
+                
+                document.body.appendChild(exportContainer);
+                
+                html2canvas(exportContainer, {
+                    backgroundColor: this.currentTheme === 'geek' ? '#0d1117' : '#fff',
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true
+                }).then(canvas => {
+                    const filename = this.generateFileName('document', 'png');
+                    const link = document.createElement('a');
+                    link.download = filename;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    document.body.removeChild(exportContainer);
+                }).catch(error => {
+                    console.error('导出 PNG 失败:', error);
+                    alert('导出 PNG 失败，请重试');
+                    document.body.removeChild(exportContainer);
+                });
+            }
+
+            downloadFile(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            loadDefaultContent() {
+                this.editor.value = `>微信公众号排版工具。问题或建议，请公众号留言。**[111](#jump_8)**
+
+建议使用 **Chrome** 浏览器，体验最佳效果。
+
+使用微信公众号编辑器有一个十分头疼的问题：粘贴出来的代码，格式错乱，空间小还带行号，而且特别丑。Markdown.com.cn编辑器能够解决这个问题。
+
+Markdown是一种轻量级的「标记语言」。
+
+请阅读下方文本熟悉工具使用方法，本文可直接拷贝到微信中预览。
+
+## 1 Markdown.com.cn 简介
+
+- 支持自定义样式的 Markdown 编辑器
+- 支持微信公众号、知乎和稀土掘金
+- 点击右上方对应图标，一键复制到各平台
+
+## 2 Markdown语法教程
+
+### 2.1 标题
+
+不同数量的\`#\`可以完成不同的标题，如下：
+
+# 一级标题
+
+## 二级标题
+
+### 三级标题
+
+### 2.2 字体
+
+粗体、斜体、粗体和斜体，删除线，需要在文字前后加不同的标记符号。如下：
+
+**这个是粗体**
+
+*这个是斜体*
+
+***这个是粗体加斜体***
+
+~~这里想用删除线~~
+
+注：如果想给字体换颜色、字体或者居中显示，需要使用内嵌HTML来实现。
+
+### 2.3 无序列表
+
+无序列表的使用，在符号\`-\`后加空格使用。如下：
+
+- 无序列表 1
+- 无序列表 2
+- 无序列表 3
+
+如果要控制列表的层级，则需要在符号\`-\`前使用空格。如下：
+
+- 无序列表 1
+- 无序列表 2
+  - 无序列表 2.1
+  - 无序列表 2.2
+
+**由于微信原因，最多支持到二级列表**。
+
+### 2.4 有序列表
+
+有序列表的使用，在数字及符号\`.\`后加空格后输入内容，如下：
+
+1. 有序列表 1
+2. 有序列表 2
+3. 有序列表 3
+
+### 2.5 引用
+
+引用的格式是在符号\`>\`后面书写文字。如下：
+
+> 读一本好书，就是在和高尚的人谈话。 ——歌德
+
+> 雇用制度对工人不利，但工人根本无力摆脱这个制度。 ——阮一峰
+
+### 2.7 链接
+
+微信公众号仅支持公众号文章链接，即域名为\`https://mp.weixin.qq.com/\`的合法链接。使用方法如下所示：
+
+对于该论述，欢迎读者查阅之前发过的文章，[你是《未来世界的幸存者》么？](https://mp.weixin.qq.com/s/s5IhxV2ooX3JN_X416nidA)
+
+<a id="jump_8"></a>
+### 2.8 图片
+
+插入图片，格式如下：
+
+![这里写图片描述](https://www.nginx.cn/wp-content/uploads/2020/03/qrcode_for_gh_82cf87d482f0_258.jpg)
+
+支持 jpg、png、gif、svg 等图片格式，**其中 svg 文件仅可在微信公众平台中使用**，svg 文件示例如下：
+
+![](https://markdown.com.cn/images/i-am-svg.svg)
+
+支持图片**拖拽和截图粘贴**到编辑器中。
+
+注：支持图片 ***拖拽和截图粘贴*** 到编辑器中，仅支持 https 的图片，图片粘贴到微信时会自动上传微信服务器。
+
+### 2.9 分割线
+
+可以在一行中用三个以上的减号来建立一个分隔线，同时需要在分隔线的上面空一行。如下：
+
+---
+
+### 2.10 表格
+
+可以使用冒号来定义表格的对齐方式，如下：
+
+| 姓名   | 年龄 |     工作 |
+| :----- | :--: | -------: |
+| 小可爱 |  18  | 吃可爱多 |
+| 小小勇敢 |  20  | 爬棵勇敢树 |
+| 小小小机智 |  22  | 看一本机智书 |
+
+## 3. 特殊语法
+
+### 3.1 脚注
+
+> 支持平台：微信公众号、知乎。
+
+脚注与链接的区别如下所示：
+
+\`\`\`markdown
+链接：[文字](链接)
+脚注：[文字](脚注解释 "脚注名字")
+\`\`\`
+
+有人认为在[大前端时代](https://en.wikipedia.org/wiki/Front-end_web_development "Front-end web development")的背景下，移动端开发（Android、IOS）将逐步退出历史舞台。
+
+[全栈工程师](是指掌握多种技能，并能利用多种技能独立完成产品的人。 "什么是全栈工程师")在业务开发流程中起到了至关重要的作用。
+
+脚注内容请拉到最下面观看。
+
+### 3.2 代码块
+
+> 支持平台：微信代码主题仅支持微信公众号！其他主题无限制。
+
+如果在一个行内需要引用代码，只要用反引号引起来就好，如下：
+
+Use the \`printf()\` function.
+
+在需要高亮的代码块的前一行及后一行使用三个反引号，同时**第一行反引号后面表示代码块所使用的语言**，如下：
+
+\`\`\`java
+// FileName: HelloWorld.java
+public class HelloWorld {
+  // Java 入口程序，程序从此入口
+  public static void main(String[] args) {
+    System.out.println("Hello,World!"); // 向控制台打印一条语句
+  }
+}
+\`\`\`
+
+支持以下语言种类：
+
+\`\`\`
+bash
+clojure，cpp，cs，css
+dart，dockerfile, diff
+erlang
+go，gradle，groovy
+haskell
+java，javascript，json，julia
+kotlin
+lisp，lua
+makefile，markdown，matlab
+objectivec
+perl，php，python
+r，ruby，rust
+scala，shell，sql，swift
+tex，typescript
+verilog，vhdl
+xml
+yaml
+\`\`\`
+
+如果想要更换代码高亮样式，可在上方**代码主题**中挑选。
+
+其中**微信代码主题与微信官方一致**，有以下注意事项：
+
+- 带行号且不换行，代码大小与官方一致
+- 需要在代码块处标志语言，否则无法高亮
+- 粘贴到公众号后，用鼠标点代码块内外一次，完成高亮
+
+diff 不能同时和其他语言的高亮同时显示，且需要调整代码主题为微信代码主题以外的代码主题才能看到 diff 效果，使用效果如下:
+
+\`\`\`diff
++ 新增项
+- 删除项
+\`\`\`
+
+**其他主题不带行号，可自定义是否换行，代码大小与当前编辑器一致**
+
+### 3.3 数学公式
+
+> 支持平台：微信公众号、知乎。
+
+行内公式使用方法，比如这个化学公式：$Hg^{2+} + 2I^- = HgI_2$
+
+块公式使用方法如下：
+
+$$H(D_2) = -\\frac{2}{4}\\log_2 \\frac{2}{4} + \\frac{2}{4}\\log_2 \\frac{2}{4} = 1$$
+
+矩阵：
+
+$$\\begin{pmatrix} 1 & a_1 & a_1^2 \\\\ 1 & a_2 & a_2^2 \\\\ 1 & a_m & a_m^2 \\end{pmatrix}$$
+
+公式由于微信不支持，目前的解决方案是转成 svg 放到微信中，无需调整，矢量不失真。
+
+### 3.4 TOC
+
+> 支持平台：微信公众号、知乎。
+
+TOC 全称为 Table of Content，列出全部标题。
+
+由于微信只支持到二级列表，本工具仅支持二级标题和三级标题的显示。
+
+## 4 其他语法
+
+### 4.1 HTML
+
+支持原生 HTML 语法，请写内联样式，如下：
+
+<span style="display:block;text-align:right;color:orangered;">橙色居右</span>
+<span style="display:block;text-align:center;color:orangered;">橙色居中</span>
+
+### 4.2 UML
+
+不支持，推荐使用开源工具\`https://draw.io/\`制作后再导入图片
+
+## 5 致谢
+
+* 歌词经理 [wechat-fromat](https://github.com/lyricat/wechat-format "灵感来源")
+* 颜家大少 [MD2All](http://md.aclickall.com/ "MdA2All")`;
+            }
+        }
+
+        // Initialize the editor when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new MarkdownEditor();
+        });
+    </script>
+</body>
+</html>
