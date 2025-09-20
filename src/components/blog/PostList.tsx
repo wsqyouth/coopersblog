@@ -80,7 +80,9 @@ export function PostList({
   }
 
   const renderPost = (post: BlogPost, index: number) => {
-    const key = post.id || post.slug || index
+    // 生成唯一的 key，结合 index 避免重复
+    const baseKey = post.id || post.slug || `post-${index}`
+    const key = `${baseKey}-${index}`
     
     switch (variant) {
       case 'compact':

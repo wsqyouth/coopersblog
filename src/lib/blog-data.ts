@@ -3,10 +3,46 @@
  */
 
 import fs from 'fs'
+import { promises as fsPromises } from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 import type { BlogPost, BlogCategoryData, Tag } from '@/types/blog'
 import { getAllCategoriesConfig, getCategorySlug, configToBlogCategoryData } from '@/config/categories'
+
+// 缓存相关
+let cachedPosts: BlogPost[] | null = null
+let cachedCategories: BlogCategoryData[] | null = null
+let cachedTags: Tag[] | null = null
+let cacheTimestamp: number = 0
+let categoriesTimestamp: number = 0
+let tagsTimestamp: number = 0
+const CACHE_DURATION = 2 * 60 * 1000 // 2分钟缓存，减少缓存时间提高数据新鲜度
+
+// 生成文件路径的唯一标识 - 使用简单哈希替代crypto
+function generateFileId(filePath: string): string {
+  // 使用简单的字符串哈希算法替代crypto
+  let hash = 0
+  if (filePath.length === 0) return hash.toString(36)
+  
+  for (let i = 0; i < filePath.length; i++) {
+    const char = filePath.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  
+  return Math.abs(hash).toString(36).substring(0, 8)
+}
+
+// 从文件路径提取分类
+function extractCategoryFromPath(filePath: string): string {
+  const pathParts = filePath.split('/')
+  // posts/category/filename.md => category
+  if (pathParts.length >= 3 && pathParts[0] === 'posts') {
+    return pathParts[1]
+  }
+  // 如果在根目录，默认为 'other'
+  return 'other'
+}
 
 // 示例文章数据 - 只保留一份
 export const mockPosts: BlogPost[] = [
@@ -97,39 +133,126 @@ export const mockTags: Tag[] = [
   { id: '3', name: 'React', slug: 'react', postCount: 1 }
 ]
 
-// 从 markdown 文件读取单个文章的函数
-function readMarkdownFile(filePath: string): BlogPost | null {
+// 扫描所有 markdown 文件
+function scanMarkdownFiles(): string[] {
   try {
-    const fullPath = path.join(process.cwd(), filePath)
-    const fileContent = fs.readFileSync(fullPath, 'utf8')
-    const { data: frontMatter, content } = matter(fileContent)
+    const postsDir = path.join(process.cwd(), 'posts')
+    const files: string[] = []
     
-    // 获取分类信息
-    const categorySlug = frontMatter.category || 'thinking'
-    const categoryConfig = getAllCategoriesConfig().find(c => c.slug === categorySlug)
-    const categoryData = categoryConfig ? configToBlogCategoryData(categoryConfig) : {
-      name: '思考笔记',
-      slug: 'thinking',
-      icon: '🤔'
+    function scanDirectory(dir: string, relativePath: string = ''): void {
+      const items = fs.readdirSync(dir)
+      
+      for (const item of items) {
+        const fullPath = path.join(dir, item)
+        const stat = fs.statSync(fullPath)
+        
+        if (stat.isDirectory()) {
+          const newRelativePath = relativePath ? path.join(relativePath, item) : item
+          scanDirectory(fullPath, newRelativePath)
+        } else if (item.endsWith('.md')) {
+          const filePath = relativePath 
+            ? path.join('posts', relativePath, item).replace(/\\/g, '/')
+            : path.join('posts', item).replace(/\\/g, '/')
+          files.push(filePath)
+        }
+      }
     }
     
+    scanDirectory(postsDir)
+    return files
+  } catch (error) {
+    console.error('Error scanning markdown files:', error)
+    return []
+  }
+}
+
+// 自动提取文章摘要
+function extractExcerpt(content: string, maxLength: number = 100): string {
+  // 移除 markdown 标记和 HTML 标签
+  const cleanContent = content
+    .replace(/^#+\s+/gm, '') // 移除标题标记
+    .replace(/\*\*(.+?)\*\*/g, '$1') // 移除粗体标记
+    .replace(/\*(.+?)\*/g, '$1') // 移除斜体标记
+    .replace(/`(.+?)`/g, '$1') // 移除行内代码标记
+    .replace(/```[\s\S]*?```/g, '') // 移除代码块
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // 移除链接，保留文本
+    .replace(/!\[.*?\]\(.+?\)/g, '') // 移除图片
+    .replace(/>\s+/g, '') // 移除引用标记
+    .replace(/\n+/g, ' ') // 替换换行为空格
+    .trim()
+  
+  // 截取前 maxLength 个字符
+  if (cleanContent.length <= maxLength) {
+    return cleanContent
+  }
+  
+  return cleanContent.substring(0, maxLength).trim() + '...'
+}
+
+// 从 markdown 文件读取单个文章的函数（异步版本）
+async function readMarkdownFile(filePath: string): Promise<BlogPost | null> {
+  try {
+    const fullPath = path.join(process.cwd(), filePath)
+    const fileContent = await fsPromises.readFile(fullPath, 'utf8')
+    const { data: frontMatter, content } = matter(fileContent)
+    
+    // 根据新规则：分类由目录名决定
+    const categorySlug = extractCategoryFromPath(filePath)
+    const categoryConfig = getAllCategoriesConfig().find(c => c.slug === categorySlug)
+    const categoryData: BlogCategoryData = categoryConfig ? configToBlogCategoryData(categoryConfig) : {
+      name: categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1),
+      slug: categorySlug,
+      icon: '📂'
+    }
+    
+    // 生成唯一标识和 slug
+    const fileName = path.basename(filePath, '.md')
+    const fileId = generateFileId(filePath)
+    
+    // 自动生成字段的逻辑
+    const id = frontMatter.id || fileId
+    const slug = frontMatter.slug || fileName
+    const title = frontMatter.title || fileName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    const excerpt = frontMatter.excerpt || extractExcerpt(content)
+    
+    // 处理标签数据：支持字符串数组和对象数组两种格式
+    let tags: string[] = []
+    if (Array.isArray(frontMatter.tags)) {
+      tags = frontMatter.tags.map((tag: any) => {
+        if (typeof tag === 'string') {
+          return tag
+        } else if (typeof tag === 'object' && tag.name) {
+          return tag.name
+        } else {
+          console.warn(`Invalid tag format in ${filePath}:`, tag)
+          return String(tag)
+        }
+      })
+    } else if (frontMatter.tags) {
+      console.warn(`Tags should be an array in ${filePath}, found:`, typeof frontMatter.tags)
+      tags = []
+    }
+    
+    // 使用原有的 mock 数据作为默认值
+    const mockPost = mockPosts.find(post => post.slug === slug) || mockPosts[0]
+    
     return {
-      id: frontMatter.slug || path.basename(filePath, '.md'),
-      slug: frontMatter.slug || path.basename(filePath, '.md'),
-      title: frontMatter.title || '无标题',
-      excerpt: frontMatter.excerpt || '',
+      id,
+      slug,
+      title,
+      excerpt,
       content,
-      date: frontMatter.date || frontMatter.publishedAt || new Date().toISOString().split('T')[0],
-      publishedAt: frontMatter.publishedAt || frontMatter.date || new Date().toISOString().split('T')[0],
+      date: frontMatter.date || mockPost.date,
+      publishedAt: frontMatter.publishedAt || frontMatter.date || mockPost.publishedAt,
       category: categoryData,
-      tags: frontMatter.tags || [],
-      author: frontMatter.author || 'Cooper',
-      status: frontMatter.status || 'published',
-      featured: frontMatter.featured || false,
-      coverImage: frontMatter.coverImage,
+      tags: tags.length > 0 ? tags : mockPost.tags,
+      author: frontMatter.author || mockPost.author,
+      status: (frontMatter.status as any) || mockPost.status,
+      featured: frontMatter.featured !== undefined ? frontMatter.featured : mockPost.featured,
+      coverImage: frontMatter.coverImage || mockPost.coverImage,
       wordCount: frontMatter.wordCount || content.length,
       readingTime: frontMatter.readingTime || calculateReadingTime(content.length),
-      views: frontMatter.views || 0,
+      views: frontMatter.views || mockPost.views,
       filePath
     }
   } catch (error) {
@@ -138,45 +261,121 @@ function readMarkdownFile(filePath: string): BlogPost | null {
   }
 }
 
-// 博客数据获取函数
-export async function getAllPosts(): Promise<BlogPost[]> {
-  // 模拟异步操作
-  await new Promise(resolve => setTimeout(resolve, 100))
+// 并发读取所有 markdown 文件
+async function readAllMarkdownFiles(): Promise<BlogPost[]> {
+  const markdownFiles = scanMarkdownFiles()
   
-  // 尝试从 markdown 文件读取
-  const markdownPost = readMarkdownFile('posts/thinking/hello-world.md')
-  
-  if (markdownPost) {
-    return [markdownPost].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  if (markdownFiles.length === 0) {
+    console.warn('No markdown files found, falling back to mock data')
+    return mockPosts
   }
   
-  // 如果读取失败，回退到 mock 数据
-  return mockPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  console.log(`Found ${markdownFiles.length} markdown files, reading concurrently...`)
+  
+  // 使用 Promise.allSettled 进行并发读取，避免单个文件失败影响整体
+  const results = await Promise.allSettled(
+    markdownFiles.map(filePath => readMarkdownFile(filePath))
+  )
+  
+  const posts: BlogPost[] = []
+  const idMap = new Map<string, { post: BlogPost; filePath: string }>()
+  let successCount = 0
+  let errorCount = 0
+  let duplicateCount = 0
+  
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value) {
+      const post = result.value
+      const filePath = markdownFiles[index]
+      
+      // 检查是否有重复的 ID（现在基于文件路径的哈希，应该是唯一的）
+      if (idMap.has(post.id)) {
+        const existing = idMap.get(post.id)!
+        console.warn(`Duplicate ID "${post.id}" found:`)
+        console.warn(`  - Existing: ${existing.filePath}`)
+        console.warn(`  - Duplicate: ${filePath}`)
+        console.warn(`  - This should not happen with path-based IDs`)
+        duplicateCount++
+      } else {
+        idMap.set(post.id, { post, filePath })
+        posts.push(post)
+        successCount++
+      }
+    } else {
+      errorCount++
+      console.error(`Failed to read ${markdownFiles[index]}:`, 
+        result.status === 'rejected' ? result.reason : 'Unknown error')
+    }
+  })
+  
+  console.log(`Successfully read ${successCount} files, ${errorCount} errors, ${duplicateCount} duplicates skipped`)
+  
+  // 如果没有成功读取任何文件，回退到 mock 数据
+  if (posts.length === 0) {
+    console.warn('No markdown files could be read, falling back to mock data')
+    return mockPosts
+  }
+  
+  return posts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+}
+
+// 博客数据获取函数（带缓存优化）
+export async function getAllPosts(forceRefresh: boolean = false): Promise<BlogPost[]> {
+  // 检查缓存
+  const now = Date.now()
+  if (!forceRefresh && cachedPosts && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log('Using cached posts data')
+    return cachedPosts
+  }
+  
+  console.log('Fetching posts from markdown files...')
+  const startTime = Date.now()
+  
+  try {
+    // 并发读取所有 markdown 文件
+    const posts = await readAllMarkdownFiles()
+    
+    // 更新缓存
+    cachedPosts = posts
+    cacheTimestamp = now
+    
+    const endTime = Date.now()
+    console.log(`Loaded ${posts.length} posts in ${endTime - startTime}ms`)
+    
+    return posts
+  } catch (error) {
+    console.error('Error loading posts:', error)
+    
+    // 如果有缓存数据，使用缓存
+    if (cachedPosts) {
+      console.log('Using stale cached data due to error')
+      return cachedPosts
+    }
+    
+    // 最后回退到 mock 数据
+    console.log('Falling back to mock data')
+    return mockPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  }
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  await new Promise(resolve => setTimeout(resolve, 50))
-  
-  // 特殊处理已知的 markdown 文件
-  if (slug === 'hello-world') {
-    const markdownPost = readMarkdownFile('posts/thinking/hello-world.md')
-    if (markdownPost) {
-      return markdownPost
-    }
-  }
-  
-  // 回退到 mock 数据
-  return mockPosts.find(post => post.slug === slug) || null
+  // 从所有文章中查找
+  const allPosts = await getAllPosts()
+  return allPosts.find(post => post.slug === slug) || null
 }
 
 export async function getAllCategories(): Promise<BlogCategoryData[]> {
-  await new Promise(resolve => setTimeout(resolve, 50))
+  // 检查分类缓存
+  const now = Date.now()
+  if (cachedCategories && (now - categoriesTimestamp) < CACHE_DURATION) {
+    return cachedCategories
+  }
   
   // 从配置生成分类数据，并动态统计文章数量
   const posts = await getAllPosts()
   const categoryConfigs = getAllCategoriesConfig()
   
-  return categoryConfigs.map(config => {
+  const categories = categoryConfigs.map(config => {
     // 统计该分类下的文章数量
     const postCount = posts.filter(post => {
       const postCategorySlug = getCategorySlug(post.category.slug)
@@ -185,10 +384,20 @@ export async function getAllCategories(): Promise<BlogCategoryData[]> {
     
     return configToBlogCategoryData(config, postCount)
   })
+  
+  // 更新缓存
+  cachedCategories = categories
+  categoriesTimestamp = now
+  
+  return categories
 }
 
 export async function getAllTags(): Promise<Tag[]> {
-  await new Promise(resolve => setTimeout(resolve, 50))
+  // 检查标签缓存
+  const now = Date.now()
+  if (cachedTags && (now - tagsTimestamp) < CACHE_DURATION) {
+    return cachedTags
+  }
   
   // 从所有文章中动态提取标签
   const posts = await getAllPosts()
@@ -197,8 +406,15 @@ export async function getAllTags(): Promise<Tag[]> {
   // 统计每个标签的使用次数
   posts.forEach(post => {
     post.tags.forEach(tagName => {
-      const current = tagMap.get(tagName) || { name: tagName, postCount: 0 }
-      tagMap.set(tagName, { ...current, postCount: current.postCount + 1 })
+      // 过滤空标签名
+      if (!tagName || typeof tagName !== 'string' || !tagName.trim()) {
+        console.warn(`Invalid tag name found in post ${post.slug}:`, tagName)
+        return
+      }
+      
+      const cleanTagName = tagName.trim()
+      const current = tagMap.get(cleanTagName) || { name: cleanTagName, postCount: 0 }
+      tagMap.set(cleanTagName, { ...current, postCount: current.postCount + 1 })
     })
   })
   
@@ -214,30 +430,103 @@ export async function getAllTags(): Promise<Tag[]> {
     }
   })
   
-  return tags.sort((a, b) => (b.postCount || 0) - (a.postCount || 0))
+  const sortedTags = tags.sort((a, b) => (b.postCount || 0) - (a.postCount || 0))
+  
+  // 更新缓存
+  cachedTags = sortedTags
+  tagsTimestamp = now
+  
+  return sortedTags
 }
 
 // 生成标签ID
 function generateTagId(name: string): string {
-  return `tag-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+  if (typeof name !== 'string') {
+    console.warn('generateTagId received non-string value:', name)
+    name = String(name)
+  }
+  
+  // 处理空字符串或只有空白字符的情况
+  if (!name || !name.trim()) {
+    console.warn('generateTagId received empty or whitespace-only name:', name)
+    return 'tag-empty'
+  }
+  
+  name = name.trim()
+  
+  // 生成安全的ID，确保不会产生空字符串或只有连字符
+  const safeId = name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')  // 替换非字母数字字符为-
+    .replace(/-+/g, '-')         // 合并多个连续的-
+    .replace(/^-|-$/g, '')       // 去除首尾的-
+  
+  // 如果处理后为空，使用稳定的哈希值
+  if (!safeId) {
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+      const char = name.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    const positiveHash = Math.abs(hash).toString(36).substring(0, 8)
+    return `tag-${positiveHash}`
+  }
+  
+  return `tag-${safeId}`
 }
 
 // 生成标签slug
 function generateTagSlug(name: string): string {
-  // 中文标签的特殊处理
+  if (typeof name !== 'string') {
+    console.warn('generateTagSlug received non-string value:', name)
+    name = String(name)
+  }
+  
+  // 处理空字符串或只有空白字符的情况
+  if (!name || !name.trim()) {
+    console.warn('generateTagSlug received empty or whitespace-only name:', name)
+    return `tag-empty`
+  }
+  
+  name = name.trim()
+  
+  // 扩展的中文标签映射，包含更多常用标签
   const slugMap: Record<string, string> = {
+    // 基础标签
     '博客': 'blog',
     '复盘': 'review',
     '思考': 'thinking',
     '学习': 'learning',
     '总结': 'summary',
     '随笔': 'essay',
+    
+    // 项目相关
     '项目管理': 'project-management',
     '项目复盘': 'project-review',
+    '博客搭建': 'blog-building',
+    '技术选型': 'tech-selection',
+    
+    // 技术相关
     '技术分享': 'tech-sharing',
+    '前端开发': 'frontend-development',
+    '性能优化': 'performance-optimization',
+    '最佳实践': 'best-practices',
+    '开发经验': 'development-experience',
+    '代码优化': 'code-optimization',
+    
+    // 生活相关
     '生活感悟': 'life-insights',
     '个人成长': 'personal-growth',
-    '工作经验': 'work-experience'
+    '工作经验': 'work-experience',
+    '个人': 'personal',
+    
+    // 英文标签保持小写
+    'Welcome': 'welcome',
+    'Next.js': 'nextjs',
+    'React': 'react',
+    'React 19': 'react-19',
+    'TypeScript': 'typescript',
+    'JavaScript': 'javascript'
   }
   
   // 如果有预设映射，使用预设的
@@ -247,17 +536,37 @@ function generateTagSlug(name: string): string {
   
   // 对于纯英文/数字，转小写并替换特殊字符
   if (/^[a-zA-Z0-9\s\-_.]+$/.test(name)) {
-    return name.toLowerCase().replace(/[^a-z0-9]/g, '-')
+    const slug = name.toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')  // 替换非字母数字字符为-
+      .replace(/-+/g, '-')         // 合并多个连续的-
+      .replace(/^-|-$/g, '')       // 去除首尾的-
+    return slug || generateStableSlug(name)
   }
   
-  // 对于包含中文的，使用拼音或自定义映射
-  // 如果没有预设映射，生成一个基于内容的slug
-  return `tag-${Date.now().toString(36)}`
+  // 对于包含中文或其他字符的，生成一个稳定的slug
+  // 不再使用时间戳，而是基于内容生成稳定的slug
+  return generateStableSlug(name)
+}
+
+// 生成稳定的标签slug（基于内容，而非时间）
+function generateStableSlug(name: string): string {
+  // 使用简单的哈希算法生成稳定的slug
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    const char = name.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  
+  // 转换为正数并生成slug
+  const positiveHash = Math.abs(hash).toString(36).substring(0, 8)
+  return `tag-${positiveHash}`
 }
 
 export async function getPostsByCategory(categorySlug: string): Promise<BlogPost[]> {
-  await new Promise(resolve => setTimeout(resolve, 50))
-  return mockPosts.filter(post => {
+  // 从所有文章中筛选指定分类的文章
+  const allPosts = await getAllPosts()
+  return allPosts.filter(post => {
     // 支持多种分类匹配方式
     const postCategorySlug = getCategorySlug(post.category.slug)
     return postCategorySlug === categorySlug
@@ -276,13 +585,13 @@ export async function getCategoryBySlug(slug: string): Promise<BlogCategoryData 
 }
 
 export async function getPostsByTag(tagSlug: string): Promise<BlogPost[]> {
-  await new Promise(resolve => setTimeout(resolve, 50))
   // 使用动态标签系统查找标签
   const tag = await getTagBySlug(tagSlug)
   if (!tag) return []
   
-  // 使用标签名称来匹配文章的 tags 数组
-  return mockPosts.filter(post => post.tags.includes(tag.name))
+  // 从所有文章中筛选包含该标签的文章
+  const allPosts = await getAllPosts()
+  return allPosts.filter(post => post.tags.includes(tag.name))
 }
 
 // 标签名称到slug的映射
@@ -299,6 +608,42 @@ export function getTagSlugByName(tagName: string): string {
 export async function getTagBySlug(slug: string): Promise<Tag | null> {
   const allTags = await getAllTags()
   return allTags.find(t => t.slug === slug) || null
+}
+
+// 清除缓存
+export function clearPostsCache(): void {
+  cachedPosts = null
+  cachedCategories = null
+  cachedTags = null
+  cacheTimestamp = 0
+  categoriesTimestamp = 0
+  tagsTimestamp = 0
+  console.log('All caches cleared')
+}
+
+// 获取缓存状态
+export function getCacheStatus(): { 
+  posts: { cached: boolean; timestamp: number; count: number }
+  categories: { cached: boolean; timestamp: number; count: number }
+  tags: { cached: boolean; timestamp: number; count: number }
+} {
+  return {
+    posts: {
+      cached: cachedPosts !== null,
+      timestamp: cacheTimestamp,
+      count: cachedPosts?.length || 0
+    },
+    categories: {
+      cached: cachedCategories !== null,
+      timestamp: categoriesTimestamp,
+      count: cachedCategories?.length || 0
+    },
+    tags: {
+      cached: cachedTags !== null,
+      timestamp: tagsTimestamp,
+      count: cachedTags?.length || 0
+    }
+  }
 }
 
 // 工具函数

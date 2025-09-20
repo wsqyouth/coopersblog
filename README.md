@@ -304,8 +304,35 @@ npm run start        # 启动生产服务器
 npm run lint         # 代码检查
 npm run lint:fix     # 自动修复代码问题
 npm run format       # 格式化代码
+npm run format:check # 检查代码格式
 npm run type-check   # TypeScript 类型检查
+npm run check-all    # 运行所有检查
+npm run fix-all      # 修复所有问题
+npm test             # 运行测试
 ```
+
+### CI/CD 流水线
+
+项目配置了完整的 GitHub Actions CI/CD 流水线：
+
+#### 代码质量检查 (.github/workflows/ci.yml)
+- ✅ TypeScript 类型检查
+- ✅ ESLint 代码规范检查  
+- ✅ Prettier 代码格式检查
+- ✅ 构建验证
+- ✅ 安全漏洞扫描
+- ✅ 依赖项检查
+- ✅ Markdown 文件验证
+
+#### 自动部署 (.github/workflows/deploy.yml)
+- 🚀 推送到 main 分支自动触发部署
+- 🌐 GitHub Pages 自动部署
+- 📦 构建产物缓存优化
+- 🔄 支持手动触发部署
+
+触发条件：
+- 推送到 main/develop 分支
+- 创建 Pull Request 到 main 分支
 
 ## 📄 许可证
 

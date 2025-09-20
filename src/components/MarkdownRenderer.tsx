@@ -6,110 +6,71 @@ interface MarkdownRendererProps {
   className?: string
 }
 
-// 语言关键字高亮映射
-const SYNTAX_HIGHLIGHTING = {
-  tsx: {
-    keywords: ['import', 'export', 'from', 'interface', 'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'extends', 'implements'],
-    types: ['string', 'number', 'boolean', 'undefined', 'null', 'React', 'JSX'],
-    strings: /(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g,
-    comments: /\/\/.*$/gm
-  },
-  typescript: {
-    keywords: ['import', 'export', 'from', 'interface', 'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'extends', 'implements', 'type'],
-    types: ['string', 'number', 'boolean', 'undefined', 'null'],
-    strings: /(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g,
-    comments: /\/\/.*$/gm
-  },
-  javascript: {
-    keywords: ['import', 'export', 'from', 'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'extends'],
-    types: ['undefined', 'null'],
-    strings: /(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g,
-    comments: /\/\/.*$/gm
-  }
-}
-
-// 语法高亮处理
-function applySyntaxHighlighting(code: string, language?: string): string {
-  if (!language || !SYNTAX_HIGHLIGHTING[language as keyof typeof SYNTAX_HIGHLIGHTING]) {
-    return code
-  }
-
-  const config = SYNTAX_HIGHLIGHTING[language as keyof typeof SYNTAX_HIGHLIGHTING]
-  let highlighted = code
-
-  // 高亮注释
-  highlighted = highlighted.replace(config.comments, (match) => 
-    `<span class="text-green-600 dark:text-green-400">${match}</span>`
-  )
-
-  // 高亮字符串
-  highlighted = highlighted.replace(config.strings, (match) => 
-    `<span class="text-amber-600 dark:text-amber-400">${match}</span>`
-  )
-
-  // 高亮关键字
-  config.keywords.forEach(keyword => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'g')
-    highlighted = highlighted.replace(regex, 
-      `<span class="text-purple-600 dark:text-purple-400 font-medium">${keyword}</span>`
-    )
-  })
-
-  // 高亮类型
-  config.types.forEach(type => {
-    const regex = new RegExp(`\\b${type}\\b`, 'g')
-    highlighted = highlighted.replace(regex, 
-      `<span class="text-blue-600 dark:text-blue-400">${type}</span>`
-    )
-  })
-
-  return highlighted
-}
-
 // 改进版本的 Markdown 渲染器
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
-  // 基本的 Markdown 转换
+  // 改进的 Markdown 转换，正确处理列表
   const processContent = (text: string) => {
-    return text
-      // 标题
-      .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mb-4 mt-6 text-foreground">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mb-4 mt-8 text-foreground">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mb-6 mt-8 text-foreground">$1</h1>')
-      // 粗体
-      .replace(/\*\*(.*)\*\*/gim, '<strong class="font-semibold text-foreground">$1</strong>')
-      // 斜体
-      .replace(/\*(.*)\*/gim, '<em class="italic text-foreground">$1</em>')
-      // 代码块（增强版）
-      .replace(/```(\w+)?\n?([\s\S]*?)```/gim, (match, language, code) => {
-        const highlightedCode = applySyntaxHighlighting(code.trim(), language)
-        const languageLabel = language ? `<div class="text-xs text-muted-foreground mb-2 font-mono">${language}</div>` : ''
-        return `<div class="my-6 rounded-lg border border-border overflow-hidden">
-          <div class="bg-muted/50 px-4 py-2 border-b border-border">
-            ${languageLabel || '<div class="text-xs text-muted-foreground font-mono">代码</div>'}
-          </div>
-          <pre class="bg-muted/30 p-4 overflow-x-auto text-sm font-mono leading-relaxed">
-            <code class="text-foreground">${highlightedCode}</code>
-          </pre>
-        </div>`
-      })
-      // 行内代码
-      .replace(/`([^`]*)`/gim, '<code class="bg-muted/60 px-2 py-1 rounded text-sm font-mono text-foreground border">$1</code>')
-      // 链接和图片处理（使用工具函数）
-      .replace(/\[([^\]]*)\]\(([^\)]*)\)/gim, (match, text, url) => {
-        // 使用工具函数检查是否为图片
-        if (isImageFile(url)) {
-          return generateImageHTML(url, text)
-        }
-        // 普通链接处理
-        return `<a href="${url}" class="text-primary hover:text-primary/80 hover:underline font-medium transition-colors">${text}</a>`
-      })
-      // 列表项
-      .replace(/^\- (.*$)/gim, '<li class="ml-6 mb-2 text-foreground">• $1</li>')
-      .replace(/^\d+\. (.*$)/gim, '<li class="ml-6 mb-2 text-foreground list-decimal">$1</li>')
-      // 引用
-      .replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-primary bg-muted/30 pl-6 pr-4 py-3 my-4 rounded-r-lg"><p class="text-muted-foreground italic mb-0">$1</p></blockquote>')
-      // 段落
-      .replace(/\n\n/gim, '</p><p class="mb-4 text-foreground leading-relaxed">')
+    // 1. 先处理代码块（避免其内容被后续正则处理）
+    let processed = text.replace(/```(\w+)?\n?([\s\S]*?)```/gim, (match, language, code) => {
+      const languageLabel = language ? `<div class="text-xs text-muted-foreground mb-2 font-mono">${language}</div>` : ''
+      return `<div class="my-6 rounded-lg border border-border overflow-hidden">
+        <div class="bg-muted/50 px-4 py-2 border-b border-border">
+          ${languageLabel || '<div class="text-xs text-muted-foreground font-mono">代码</div>'}
+        </div>
+        <pre class="bg-muted/30 p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+          <code class="text-foreground">${code.trim()}</code>
+        </pre>
+      </div>`
+    })
+    
+    // 2. 行内代码
+    processed = processed.replace(/`([^`]+)`/gim, '<code class="bg-muted/60 px-2 py-1 rounded text-sm font-mono text-foreground border">$1</code>')
+    
+    // 3. 处理列表（在处理粗体之前）
+    processed = processed.replace(/((?:^- .+$\n?)+)/gm, (match) => {
+      const items = match.trim().split('\n').map(line => {
+        const content = line.replace(/^- /, '')
+        return `<li class="mb-2 text-foreground flex items-start"><span class="mr-2">•</span><span>${content}</span></li>`
+      }).join('')
+      return `<ul class="mb-4 space-y-1">${items}</ul>`
+    })
+    
+    // 处理有序列表
+    processed = processed.replace(/((?:^\d+\. .+$\n?)+)/gm, (match) => {
+      const items = match.trim().split('\n').map(line => {
+        const content = line.replace(/^\d+\. /, '')
+        return `<li class="mb-2 text-foreground">${content}</li>`
+      }).join('')
+      return `<ol class="mb-4 ml-6 space-y-1 list-decimal">${items}</ol>`
+    })
+    
+    // 4. 标题
+    processed = processed.replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mb-4 mt-6 text-foreground">$1</h3>')
+    processed = processed.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mb-4 mt-8 text-foreground">$1</h2>')
+    processed = processed.replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mb-6 mt-8 text-foreground">$1</h1>')
+    
+    // 5. 粗体和斜体（使用非贪婪匹配）
+    processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
+    processed = processed.replace(/\*([^*\n]*?)\*/g, '<em class="italic text-foreground">$1</em>')
+    
+    // 6. 链接和图片处理
+    processed = processed.replace(/!\[([^\]]*)\]\(([^\)]*)\)/gim, (match, text, url) => {
+      if (isImageFile(url)) {
+        return generateImageHTML(url, text)
+      }
+      return match
+    })
+    processed = processed.replace(/\[([^\]]*)\]\(([^\)]*)\)/gim, (match, text, url) => {
+      return `<a href="${url}" class="text-primary hover:text-primary/80 hover:underline font-medium transition-colors">${text}</a>`
+    })
+    
+    // 7. 引用
+    processed = processed.replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-primary bg-muted/30 pl-6 pr-4 py-3 my-4 rounded-r-lg"><p class="text-muted-foreground italic mb-0">$1</p></blockquote>')
+    
+    // 8. 段落处理（最后进行）
+    processed = processed.replace(/\n\n/gim, '</p><p class="mb-4 text-foreground leading-relaxed">')
+    
+    return processed
   }
 
   const processedContent = `<p class="mb-4 text-foreground leading-relaxed">${processContent(content)}</p>`
@@ -133,7 +94,5 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
   )
 }
 
-// 同步版本的 Markdown 渲染器（用于客户端组件）
-export function MarkdownRendererSync({ content, className }: MarkdownRendererProps) {
-  return <MarkdownRenderer content={content} className={className} />
-}
+// 默认导出
+export default MarkdownRenderer

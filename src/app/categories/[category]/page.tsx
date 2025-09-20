@@ -12,6 +12,11 @@ interface CategoryPageProps {
 }
 
 export async function generateStaticParams() {
+  // 在开发模式下不预生成静态参数，支持动态路由
+  if (process.env.NODE_ENV === 'development') {
+    return []
+  }
+  
   try {
     const categories = await getAllCategories()
     
@@ -40,6 +45,9 @@ export async function generateStaticParams() {
     ]
   }
 }
+
+// 启用动态路由段的静态生成
+export const dynamicParams = true
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category: categorySlug } = await params

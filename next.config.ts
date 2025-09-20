@@ -1,13 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 静态导出配置
-  output: 'export',
-  trailingSlash: true,
+  // 开发模式：暂时禁用静态导出以支持动态路由
+  // output: 'export',  // 开发阶段注释掉
+  // trailingSlash: true,  // 开发阶段注释掉
   
-  // 图片优化（静态导出时需要禁用）
+  // 图片优化
   images: {
-    unoptimized: true,
+    unoptimized: process.env.NODE_ENV === 'production',  // 只在生产环境禁用优化
   },
   
   // 压缩配置

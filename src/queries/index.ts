@@ -196,8 +196,7 @@ class FileSystemDataSource implements DataSource {
   }
 
   clearCache(): void {
-    // 简单实现：由于我们使用的是简单的 mock 数据，不需要清理缓存
-    console.log('Cache cleared (no-op in simple implementation)')
+    fileSystemQueries.clearPostsCache()
   }
 }
 

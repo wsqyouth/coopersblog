@@ -55,7 +55,13 @@ export function TagList({
       </>
     )
 
-    const key = tag.id || tag.slug || index
+    // 生成绝对唯一的 key，结合多个因素确保不重复
+    const safeName = tag.name && tag.name.trim() ? tag.name.trim() : `unnamed`
+    const safeSlug = tag.slug && tag.slug.trim() ? tag.slug.trim() : `slug-${index}`
+    const safeId = tag.id && tag.id.trim() ? tag.id.trim() : `id-${index}`
+    
+    // 使用组合key确保唯一性：优先级 id > slug > name-index
+    const key = `${safeId}-${safeSlug}-${index}`
     const baseProps = {
       className: cn(
         'transition-all duration-200',
@@ -84,6 +90,24 @@ export function TagList({
     }
 
     if (interactive) {
+      // 增强安全检查：确保 tag 和 tag.slug 都存在且有效
+      if (!tag || !tag.slug || typeof tag.slug !== 'string' || tag.slug.trim() === '') {
+        console.warn('Tag missing or invalid slug:', tag)
+        return (
+          <Badge
+            key={key}
+            {...baseProps}
+            variant={variant === 'minimal' ? 'secondary' : 'outline'}
+            size={badgeSize}
+          >
+            {tagContent}
+          </Badge>
+        )
+      }
+      
+      // 额外的安全措施：确保 slug 是有效的 URL 部分
+      const safeslug = encodeURIComponent(tag.slug.trim())
+      
       return (
         <Badge
           key={key}
@@ -92,7 +116,7 @@ export function TagList({
           size={badgeSize}
           asChild
         >
-          <Link href={`/tags/${tag.slug}`}>
+          <Link href={`/tags/${safeslug}`}>
             {tagContent}
           </Link>
         </Badge>

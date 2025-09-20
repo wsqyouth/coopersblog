@@ -1,18 +1,8 @@
 ---
-title: "Hello World - 我的第一篇博客文章"
+id: "hello-world"
 slug: "hello-world"
+title: "Hello World - 我的第一篇博客文章"
 excerpt: "欢迎来到我的博客！这是第一篇文章，介绍了博客的基本功能和特色。"
-date: "2024-01-15"
-publishedAt: "2024-01-15"
-category: "thinking"
-tags: ["博客", "Next.js", "React"]
-author: "Cooper"
-status: "published"
-featured: true
-coverImage: "/images/posts/hello-world.svg"
-wordCount: 800
-readingTime: 4
-views: 1250
 ---
 
 # Hello World - 欢迎来到我的博客

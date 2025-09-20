@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/layout/Navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
-import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import MarkdownRenderer from '@/components/MarkdownRenderer'
 
 interface PostPageProps {
   params: Promise<{

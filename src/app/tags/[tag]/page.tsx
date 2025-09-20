@@ -13,12 +13,19 @@ interface TagPageProps {
 }
 
 export async function generateStaticParams() {
+  // 在开发模式下不预生成静态参数，支持动态路由
+  if (process.env.NODE_ENV === 'development') {
+    return []
+  }
+  
   try {
     const tags = await getAllTags()
     
     const params = tags.map((tag) => ({
       tag: tag.slug,
     }))
+    
+    console.log('Generated tag params:', params.map(p => p.tag))
     
     // 如果没有标签，返回默认路径
     if (params.length === 0) {
@@ -41,6 +48,9 @@ export async function generateStaticParams() {
     ]
   }
 }
+
+// 启用动态路由段的静态生成
+export const dynamicParams = true
 
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
   const { tag: tagSlug } = await params
