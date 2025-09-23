@@ -5,6 +5,10 @@
 /* 导入主题样式 */
 @import '../styles/themes.css';
 
+/* 导入代码高亮样式 */
+@import 'highlight.js/styles/github.css' (prefers-color-scheme: light);
+@import 'highlight.js/styles/github-dark.css' (prefers-color-scheme: dark);
+
 
 /* 基础样式 */
 * {
